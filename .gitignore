@@ -1,0 +1,16 @@
+
+*.csv
+
+*.pkl
+
+*.pyc
+
+Pipfile
+
+*.lock
+
+.vscode/settings.json
+
+.cache-aymanzay
+
+sparklib.py
