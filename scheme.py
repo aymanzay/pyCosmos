@@ -9,8 +9,8 @@ import pandas as pd
 from pyspark import SparkConf, SparkContext, SQLContext
 from pyspark.sql import Row
 import pyspark.sql.types as pst
-from pyspark.mllib.linalg import Vectors
-from pyspark.mllib.clustering import KMeans
+from pyspark.ml.clustering import KMeans
+from pyspark.ml.evaluation import ClusteringEvaluator
 from pyspark.ml.feature import VectorAssembler
 from sklearn.decomposition import PCA
 #from sklearn.cluster import KMeans, MeanShift
@@ -53,29 +53,34 @@ if __name__ == '__main__':
     ids = library['id']
 
     #create analysis dataframe
-    analysis_df = refactorAnalysisDF(lib_analysis, ids)
+    v_analysis = refactorAnalysisDF(lib_analysis, ids, sql_sc)
 
     #lib_features = library.drop(columns=['analysis'])
     s_features = s_main
+    assembler = VectorAssembler(inputCols=s_features.schema.names, outputCol="features")
+    v_features = assembler.transform(s_features)
 
     #lib_tech = library.as_matrix(columns=['tempo', 'key', 'loudness', 'valence', 'time_signature', 'liveness', 'energy', 'danceability'])
     s_tech = s_main.select('tempo', 'key', 'loudness', 'valence', 'time_signature', 'liveness', 'energy', 'danceability')
+    assembler = VectorAssembler(inputCols=s_tech.schema.names, outputCol="tech_features")
+    v_tech = assembler.transform(s_tech)
 
     #lib_song_info = library.as_matrix(columns=['artist', 'genre', 'speechiness', 'acousticness', 'instrumentalness'])
     s_info = s_main.select('speechiness', 'acousticness', 'instrumentalness')
-
-
+    assembler = VectorAssembler(inputCols=s_info.schema.names, outputCol="tech_features")
+    v_info = assembler.transform(s_info)
 
     #get initial root vectors
     #init meanshift clustering model
-    '''
-    model = KMeans.train(d, k=12, maxIterations=10)
+
+    kmeans = KMeans().setK(12).setSeed(1)
+    model = kmeans.fit(v_features)
     # Shows the result.
     centers = model.clusterCenters()
     print("Cluster Centers: ")
     for center in centers:
         print(center)
-    '''
+
     #clusters = KMeans.train(analysis_rdd, 2, maxIterations=10, initializationMode="random")
     #WSSSE = analysis_rdd.map(lambda point: error(point)).reduce(lambda x, y: x + y)
     #print("Within Set Sum of Squared Error = " + str(WSSSE))

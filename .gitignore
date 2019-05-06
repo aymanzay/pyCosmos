@@ -14,3 +14,7 @@ Pipfile
 .cache-aymanzay
 
 sparklib.py
+
+*.xml
+
+*.iml
