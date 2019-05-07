@@ -8,6 +8,36 @@ def Merge(dict1, dict2):
     res = {**dict1, **dict2}
     return res
 
+def normalize_matrix(full_arr):
+    largest = 0
+    for i in range(full_arr.shape[0]):
+        for index in range(0, full_arr.shape[1] - 1):
+            if isinstance(np.asarray(full_arr[i][index]), (list,)):
+                length = np.asarray(full_arr[i][index]).shape[0]
+            else:
+                length = len(full_arr[i])
+            if length > largest:
+                largest = length
+
+    ml_matrix = np.zeros((full_arr.shape[0], largest))
+    for i in range(ml_matrix.shape[0]):
+        temp_a = []
+        for index in range(0, full_arr.shape[1] - 1):
+            temp = np.asarray(full_arr[i][index])
+            temp_a.append(temp)
+        full_a = []
+        ##OPTIMIZE
+        for x in temp_a:
+            x = np.asarray(x).flatten()
+            for y in x:
+                full_a.append(y)
+        full_a = np.asarray(full_a)
+
+        for zi, z in zip(range(len(full_a)), range(len(ml_matrix[i]))):
+            ml_matrix[i][z] = full_a[zi]
+    return ml_matrix
+
+
 def refactorAnalysisDF(lib_analysis, ids, sql_context):
     keylist = lib_analysis[0].keys()
 
@@ -54,28 +84,7 @@ def refactorAnalysisDF(lib_analysis, ids, sql_context):
     #v_analysis = assembler.transform(df_w_vectors)
     '''
     full_arr = np.asarray(full_arr)
-    largest = 0
-    for i in range(full_arr.shape[0]):
-        for index in range(0, 4):
-            length = np.asarray(full_arr[i][index]).shape[0]
-            if length > largest:
-                largest = length
+    ml_analysis = normalize_matrix(full_arr)
 
-    ml_analysis = np.zeros((full_arr.shape[0], largest))
-    for i in range(ml_analysis.shape[0]):
-        temp_a = []
-        for index in range(0, 4):
-            temp = np.asarray(full_arr[i][index])
-            temp_a.append(temp)
-        full_a = []
-        ##OPTIMIZE
-        for x in temp_a:
-            x = np.asarray(x).flatten()
-            for y in x:
-                full_a.append(y)
-        full_a = np.asarray(full_a)
-
-        for zi, z in zip(range(len(full_a)), range(len(ml_analysis[i]))):
-            ml_analysis[i][z] = full_a[zi]
 
     return np.asarray(ml_analysis)

@@ -25,10 +25,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler  
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets.samples_generator import make_blobs
+from scipy.sparse import csr_matrix
 
 import plotly.plotly as py
 import plotly.graph_objs as go
 import plotly
+import matplotlib.pyplot as plt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -90,23 +92,25 @@ if __name__ == '__main__':
     assembler = VectorAssembler(inputCols=s_info.schema.names, outputCol="tech_features")
     v_info = assembler.transform(s_info)
 
+
+
     print('Converting ')
     start = time.time()
     converter = Converter(sc)
     features = converter.toPandas(v_features)
-    m_features = np.asarray(features.values)
+    m_features = features.values
+    print(type(m_features[0]), m_features[0].shape)
+    ml_features = normalize_matrix(m_features)
     end = time.time()
     print('Converted in', (end-start), 'seconds')
 
     print("Performing analysis clustering")
     #get initial root vectors
     #init meanshift clustering model
-    centers = [[1, 1], [-1, -1], [1, -1]]
-    X, _ = make_blobs(n_samples=m_analysis.shape[0], centers=centers, cluster_std=0.6)
 
     start = time.time()
     clustering = MeanShift(n_jobs=-1)
-    clustering.fit(m_analysis)
+    clustering.fit(ml_features)
 
     labels = clustering.labels_
     cluster_centers = clustering.cluster_centers_
@@ -117,21 +121,10 @@ if __name__ == '__main__':
 
     print(clustering.cluster_centers_)
 
-    kmeans = KMeans().setK(12).setSeed(1)
-    model = kmeans.fit(v_features)
-    # Shows the result.
-    centers = model.clusterCenters()
-    print("Cluster Centers: ")
-    for center in centers:
-        print(center)
 
-    #clusters = KMeans.train(analysis_rdd, 2, maxIterations=10, initializationMode="random")
-    #WSSSE = analysis_rdd.map(lambda point: error(point)).reduce(lambda x, y: x + y)
-    #print("Within Set Sum of Squared Error = " + str(WSSSE))
+    #plot results
 
-    #labels = cluster.fit_predict(lib_analysis)
-    #print(labels)
-    
+
     #get list of centroids to extract root vectors
 
     #get vertex distances in order to assign them to weights
