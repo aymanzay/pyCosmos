@@ -35,6 +35,7 @@ def normalize_matrix(full_arr):
 
         for zi, z in zip(range(len(full_a)), range(len(ml_matrix[i]))):
             ml_matrix[i][z] = full_a[zi]
+
     return ml_matrix
 
 

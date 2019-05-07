@@ -5,6 +5,7 @@ from spotapi import *
 from dfops import *
 import spotipy
 
+import os
 import time
 import warnings
 import pickle
@@ -21,11 +22,11 @@ from pyspark.ml.feature import VectorAssembler
 
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans, MeanShift
+from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
+from sklearn.metrics import pairwise_distances_argmin_min
 from sklearn.model_selection import train_test_split 
-from sklearn.preprocessing import StandardScaler  
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.datasets.samples_generator import make_blobs
-from scipy.sparse import csr_matrix
+from sklearn.preprocessing import StandardScaler
+from sklearn.externals import joblib
 
 import plotly.plotly as py
 import plotly.graph_objs as go
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     sc.setLogLevel("ERROR")
 
     #import library
-    with open('./library/aymanzay_lib.pkl', 'rb') as f:
+    with open('./library/pkls/aymanzay_lib.pkl', 'rb') as f:
         library = pickle.load(f)
         print('loaded')
     
@@ -69,10 +70,9 @@ if __name__ == '__main__':
     #create analysis dataframe
     print("Extracting analysis data")
     start = time.time()
-    m_analysis = refactorAnalysisDF(lib_analysis, ids, sql_sc)
+    ml_analysis = refactorAnalysisDF(lib_analysis, ids, sql_sc)
     end = time.time()
     print('Extracted in', (end-start), 'seconds')
-    #possible approach may be to process each column separately
 
     #lib_features = library.drop(columns=['analysis'])
     s_features = s_main
@@ -92,46 +92,60 @@ if __name__ == '__main__':
     assembler = VectorAssembler(inputCols=s_info.schema.names, outputCol="tech_features")
     v_info = assembler.transform(s_info)
 
-
-
-    print('Converting ')
+    print('Converting all dataframes to dense matrices')
     start = time.time()
     converter = Converter(sc)
-    features = converter.toPandas(v_features)
-    m_features = features.values
-    print(type(m_features[0]), m_features[0].shape)
-    ml_features = normalize_matrix(m_features)
+    features, tech, info = converter.toPandas(v_features), converter.toPandas(v_tech), converter.toPandas(v_info)
+    m_features, m_tech, m_info = features.values, tech.values, info.values
+    ml_features, ml_tech, ml_info = normalize_matrix(m_features), normalize_matrix(m_tech), normalize_matrix(m_info)
     end = time.time()
     print('Converted in', (end-start), 'seconds')
 
-    print("Performing analysis clustering")
-    #get initial root vectors
-    #init meanshift clustering model
+    song_matrices = [ml_analysis, ml_features, ml_tech, ml_info]
+    matrix_labels = ['analysis', 'features', 'tech', 'info']
+    print("Performing clustering on each matrix")
 
-    start = time.time()
-    clustering = MeanShift(n_jobs=-1)
-    clustering.fit(ml_features)
+    performClustering = False
+    for label in matrix_labels:
+        if not (os.path.isfile('models/meanshift_' + label + '.model') and os.path.isfile('models/knn_' + label + '.model')):
+            performClustering = True
 
-    labels = clustering.labels_
-    cluster_centers = clustering.cluster_centers_
-    labels_unique = np.unique(labels)
-    n_clusters = len(labels_unique)
-    end = time.time()
-    print('Clustered in', ((end - start)/60), 'minutes')
+    if performClustering:
+        # getting initial root vectors
+        start = time.time()
+        clustering = MeanShift(n_jobs=-1) # init MeanShift clustering model
 
-    print(clustering.cluster_centers_)
+        for f_matrix, m_label in zip(song_matrices, matrix_labels):
+            ##START ANALYSIS CODE BLOCK
+            print(m_label)
 
+            outputfile = 'models/meanshift_' + m_label + '.model'
+            clustering.fit(f_matrix)
+            joblib.dump(clustering, outputfile)
 
-    #plot results
+            cluster_centers = clustering.cluster_centers_
+            n_clusters = len(cluster_centers)
+            end = time.time()
+            print(clustering.cluster_centers_)
+            print('Clustered in', (((end-start)/60), 'minutes' if ((end - start) > 60) else (end-start),'seconds'), 'with ', n_clusters, 'clusters')
 
+            root_indices = []
+            #returns list of 'labels' corresponding to the song index in the lib array
+            for center in cluster_centers:
+                roots, _ = pairwise_distances_argmin_min([center], f_matrix)
+                root_indices.append(roots)
 
-    #get list of centroids to extract root vectors
+            #given list of roots, perform knn on each one to get neighboring nodes
+            for root in root_indices:
+                neighbors = NearestNeighbors(n_neighbors=(50), algorithm='auto', n_jobs=-1)
+                neighbors.fit(f_matrix)
+                outputfile = 'models/knn_' + m_label + '.model'
+                joblib.dump(neighbors, outputfile)
+                distances, indices = neighbors.kneighbors(f_matrix[root])
+                print('distances', distances)
+                print('indices', indices)
 
-    #get vertex distances in order to assign them to weights
-    #distances = []
-    #for i, (cx, cy) in enumerate(centroids):
-    #    costs, roots = k_mean_distance(centroids, cx, cy, i, clusters)
-    #    distances.append(mean_distance)
+    #get distances of each node that correspond to weight connections
     
     #create graph
     g = Graph()
