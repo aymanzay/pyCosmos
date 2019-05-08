@@ -1,6 +1,10 @@
 import math
+import numpy as np
+import re
 import operator
 import collections
+import networkx as nx
+import matplotlib.pyplot as plt
 
 class Vertex:
     def __init__(self, node):
@@ -10,8 +14,8 @@ class Vertex:
     def __str__(self):
         return str(self.id) + ' adjacent: ' + str([x.id for x in self.adjacent])
 
-    def add_neighbor(self, neighbor, weight=0):
-        self.adjacent[neighbor] = weight
+    def add_neighbor(self, neighbor, weight=0.0):
+        self.adjacent[neighbor] = float(weight)
 
     def get_connections(self):
         return self.adjacent.keys()  
@@ -42,14 +46,14 @@ class Graph:
         else:
             return None
 
-    def add_edge(self, frm, to, cost = 0):
+    def add_edge(self, frm, to, cost = 0.0):
         if frm not in self.vert_dict:
             self.add_vertex(frm)
         if to not in self.vert_dict:
             self.add_vertex(to)
 
-        self.vert_dict[frm].add_neighbor(self.vert_dict[to], cost)
-        self.vert_dict[to].add_neighbor(self.vert_dict[frm], cost)
+        self.vert_dict[frm].add_neighbor(self.vert_dict[to], float(cost))
+        self.vert_dict[to].add_neighbor(self.vert_dict[frm], float(cost))
 
     def get_vertices(self):
         return self.vert_dict.keys()

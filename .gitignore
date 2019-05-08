@@ -18,3 +18,5 @@ sparklib.py
 *.xml
 
 *.iml
+
+*.model

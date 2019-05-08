@@ -20,18 +20,15 @@ import pyspark.sql.types as pst
 #from pyspark.ml.evaluation import ClusteringEvaluator
 from pyspark.ml.feature import VectorAssembler
 
-from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans, MeanShift
 from sklearn.neighbors import KNeighborsRegressor, NearestNeighbors
 from sklearn.metrics import pairwise_distances_argmin_min
-from sklearn.model_selection import train_test_split 
-from sklearn.preprocessing import StandardScaler
 from sklearn.externals import joblib
 
-import plotly.plotly as py
-import plotly.graph_objs as go
-import plotly
+import networkx as nx
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from networkx.drawing.nx_agraph import graphviz_layout
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -59,13 +56,15 @@ if __name__ == '__main__':
     with open('./library/pkls/aymanzay_lib.pkl', 'rb') as f:
         library = pickle.load(f)
         print('loaded')
-    
+
+    num_samples = len(library)
+
     #create df duplicates
     s_main = sql_sc.createDataFrame(library)
     s_main = s_main.drop('track_href', 'uri', 'analysis', 'analysis_url', 'id', 'type')
 
     lib_analysis = library['analysis']
-    ids = library['id']
+    ids = library['id'] #important for graph construction
 
     #create analysis dataframe
     print("Extracting analysis data")
@@ -110,16 +109,20 @@ if __name__ == '__main__':
         if not (os.path.isfile('models/meanshift_' + label + '.model') and os.path.isfile('models/knn_' + label + '.model')):
             performClustering = True
 
-    if performClustering:
-        # getting initial root vectors
-        start = time.time()
-        clustering = MeanShift(n_jobs=-1) # init MeanShift clustering model
+    root_vector_indices = []
+    root_neighbors = []
+    root_neighbor_weights = []
 
-        for f_matrix, m_label in zip(song_matrices, matrix_labels):
+    a_start = time.time()
+    for f_matrix, m_label in zip(song_matrices, matrix_labels):
+        if not performClustering:
+        # getting initial root vectors
             ##START ANALYSIS CODE BLOCK
             print(m_label)
-
+            clustering = MeanShift(n_jobs=-1)  # init MeanShift clustering model
             outputfile = 'models/meanshift_' + m_label + '.model'
+
+            # perform Mean-Shift Clustering
             clustering.fit(f_matrix)
             joblib.dump(clustering, outputfile)
 
@@ -127,41 +130,99 @@ if __name__ == '__main__':
             n_clusters = len(cluster_centers)
             end = time.time()
             print(clustering.cluster_centers_)
-            print('Clustered in', (((end-start)/60), 'minutes' if ((end - start) > 60) else (end-start),'seconds'), 'with ', n_clusters, 'clusters')
+            print('Clustered in', ((end-start)/60), 'minutes' if ((end - start) > 60) else ((end-start),'seconds'), 'with ', n_clusters, 'clusters')
 
+            # save root vectors
             root_indices = []
             #returns list of 'labels' corresponding to the song index in the lib array
             for center in cluster_centers:
                 roots, _ = pairwise_distances_argmin_min([center], f_matrix)
                 root_indices.append(roots)
 
+            root_vector_indices.append(root_indices)
             #given list of roots, perform knn on each one to get neighboring nodes
             for root in root_indices:
-                neighbors = NearestNeighbors(n_neighbors=(50), algorithm='auto', n_jobs=-1)
+                neighbors = NearestNeighbors(n_neighbors=((num_samples/5)/2), algorithm='auto', n_jobs=-1)
                 neighbors.fit(f_matrix)
                 outputfile = 'models/knn_' + m_label + '.model'
                 joblib.dump(neighbors, outputfile)
                 distances, indices = neighbors.kneighbors(f_matrix[root])
-                print('distances', distances)
-                print('indices', indices)
+                #print('distances', distances)
+                #print('indices', indices)
+                root_neighbors.append(indices)
+                root_neighbor_weights.append(distances)
+        else:
+            print('loading', m_label, 'model')
+            outputfile = 'models/meanshift_' + m_label + '.model'
+            clustering = joblib.load(outputfile)
 
-    #get distances of each node that correspond to weight connections
-    
+            cluster_centers = clustering.cluster_centers_
+            n_clusters = len(cluster_centers)
+
+            # save root vectors
+            root_indices = []
+            # returns list of 'labels' corresponding to the song index in the lib array
+            for center in cluster_centers:
+                roots, _ = pairwise_distances_argmin_min([center], f_matrix)
+                root_indices.append(roots)
+
+            root_vector_indices.append(root_indices)
+            # given list of roots, perform knn on each one to get neighboring nodes
+            for root in root_indices:
+                outputfile = 'models/knn_' + m_label + '.model'
+                neighbors = joblib.load(outputfile)
+                distances, indices = neighbors.kneighbors(f_matrix[root])
+                #print('distances', distances)
+                #print('indices', indices)
+                root_neighbors.append(indices)
+                root_neighbor_weights.append(distances)
+    a_end = time.time()
+    print('total node generation time:', (a_end-a_start), 'seconds')
+
+    root_vector_indices = np.asarray(root_vector_indices)
+    root_neighbors = np.asarray(root_neighbors)
+    root_neighbor_weights = np.asarray(root_neighbor_weights)
+
     #create graph
     g = Graph()
+    G = nx.MultiDiGraph()
+    G.depth = {}
 
     #add list of root vertices to graph
+    for r in range(root_vector_indices.shape[0]):
+        for ri in range(len(root_vector_indices[r])):
+            # loop through
+            root_index_value = root_vector_indices[r][ri][0]
+            root_id = ids[root_index_value]
+            g.add_vertex(root_id)
+            G.add_node(root_id)
+            neighbor_arrays = np.asarray(root_neighbors[ri][0])
+            neighbor_weights = np.asarray(root_neighbor_weights[ri][0])
+            for n,w in zip(range(len(neighbor_arrays)), range(len(neighbor_weights))):
+                neighbor_index = neighbor_arrays[n]
+                conn_weight = neighbor_weights[w]
+                neighbor_id = ids[neighbor_index]
+                if (neighbor_id != root_id) and (conn_weight > 0):
+                    # add to graph + connect
+                    g.add_vertex(neighbor_id)
+                    g.add_edge(root_id, neighbor_id, float(conn_weight))
+                    G.add_edge(root_id, neighbor_id, weight=float(conn_weight))
 
-    #loop through root vectors
-    #perform knn
-    
-    #add to graph + connect knn results to input vector
+    colors = range(G.number_of_edges())
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, node_color='#A0CBE2', edge_color=colors,
+                     width=4, edge_cmap=plt.cm.Blues, with_labels=False)
+    plt.savefig("graphs/2d_graph.png")
+    plt.show()
 
-    #perform Expectation-Maximization GMM
+    '''
+    print('print graph')
+    for v in g:
+        for w in v.get_connections():
+            vid = v.get_id()
+            wid = w.get_id()
+            print('( %s , %s, %3f)' % (vid, wid, v.get_weight(w)))
 
-    #perform Mean-Shift Clustering
-    #save root vectors
-
-    #add to graph + connect
-
-
+    for v in g:
+        print('g.vert_dict[%s]=%s' % (v.get_id(), g.vert_dict[v.get_id()]))
+    '''
