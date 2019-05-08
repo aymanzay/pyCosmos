@@ -39,15 +39,12 @@ def normalize_matrix(full_arr):
     return ml_matrix
 
 
-def refactorAnalysisDF(lib_analysis, ids, sql_context):
+def refactorAnalysisDF(lib_analysis, sql_context=None):
     keylist = lib_analysis[0].keys()
 
-    pd_ids = ids
     full_arr = []
     for songindex in range(lib_analysis.shape[0]): #iterate songs
-        id = {'id': pd_ids[songindex]}
         song = lib_analysis[songindex]
-        #song = Merge(song, id)
         factored = []
         for key in keylist: #iterate song keys
             metadata = song[key]

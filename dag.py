@@ -59,6 +59,43 @@ class Graph:
         return self.vert_dict.keys()
 
 
+def print_adj_matrix(g):
+    print('printing graph')
+    for v in g:
+        for w in v.get_connections():
+            vid = v.get_id()
+            wid = w.get_id()
+            print('( %s , %s, %3f)' % (vid, wid, v.get_weight(w)))
+
+    for v in g:
+        print('g.vert_dict[%s]=%s' % (v.get_id(), g.vert_dict[v.get_id()]))
+
+def populate_graphs(root_vector_indices, root_neighbors, root_neighbor_weights, ids):
+    g = Graph()
+    G = nx.MultiGraph()
+
+    # add list of root vertices to graph
+    for r in range(root_vector_indices.shape[0]):
+        for ri in range(len(root_vector_indices[r])):
+            # loop through
+            root_index_value = root_vector_indices[r][ri][0]
+            root_id = ids[root_index_value]
+            g.add_vertex(root_id)
+            G.add_node(root_id)
+            neighbor_arrays = np.asarray(root_neighbors[ri][0])
+            neighbor_weights = np.asarray(root_neighbor_weights[ri][0])
+            for n, w in zip(range(len(neighbor_arrays)), range(len(neighbor_weights))):
+                neighbor_index = neighbor_arrays[n]
+                conn_weight = neighbor_weights[w]
+                neighbor_id = ids[neighbor_index]
+                if (neighbor_id != root_id) and (conn_weight > 0):
+                    # add to graph + connect
+                    g.add_vertex(neighbor_id)
+                    g.add_edge(root_id, neighbor_id, float(conn_weight))
+                    G.add_edge(root_id, neighbor_id, weight=float(conn_weight))
+
+    return g, G, G.number_of_nodes()
+
 def euclideanDistance(instance1, instance2, length):
 	distance = 0
 
