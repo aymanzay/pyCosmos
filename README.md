@@ -12,6 +12,7 @@ scheme:
  - Using spark-sklearn to convert Spark DataFrames -> Pandas -> Numpy arrays
  - Clustering is done using sklearn MeanShift, k-Nearest Neighbors.
  - Generate a weighted directed acyclic graph (DAG) from data recovered from clustering using networkx.
- - Plot the DAG representing user library schema; depicted below.
+ - Plot the DAG representing user library schema; depicted in the two graphs below.
 
-![Alt text](2d_graph.png?raw=true "Library clustered DAG representation")
+![Alt text](2d_graph.png?raw=true "Library spherical clustered DAG representation")
+![Alt text](graphs/2d_graphnet.png?raw=true "Library clustered DAG representation")
