@@ -2,6 +2,7 @@ import os
 import pickle
 import time
 import numpy as np
+import pandas as pd
 
 from dfops import *
 from conf import *
@@ -39,7 +40,7 @@ def spark_dfToVectors(main_spark, lib):
     # create analysis dataframe
     print("Extracting analysis data")
     start = time.time()
-    ml_analysis = refactorAnalysisDF(lib_analysis)
+    ml_analysis = refactorAnalysisNP(lib_analysis)
     end = time.time()
     print('Extracted in', (end - start), 'seconds')
 
@@ -62,6 +63,30 @@ def spark_dfToVectors(main_spark, lib):
     v_info = assembler.transform(s_info)
 
     return ml_analysis, v_features, v_tech, v_info
+
+def separate_dfs(library, ids):
+
+    lib_analysis = library['analysis']
+    ids = pd.DataFrame(ids, columns=['id'])
+
+    lib = library.drop(columns=['track_href', 'uri', 'analysis', 'analysis_url', 'id', 'type'])
+
+    #analysis
+    analysis_df = refactorAnalysisDF(lib_analysis)
+    analysis_df = pd.concat([analysis_df, ids], sort=False)
+
+    #main features
+    main_df = pd.concat([lib, ids], sort=False)
+
+    #technical features
+    tech_df = library[['tempo', 'key', 'loudness', 'valence', 'time_signature', 'liveness', 'energy', 'danceability']]
+    tech_df = pd.concat([tech_df, ids], sort=False)
+
+    #song info
+    song_df = lib[['speechiness', 'acousticness', 'instrumentalness']]
+    song_df = pd.concat([song_df, ids], sort=False)
+
+    return analysis_df, main_df, tech_df, song_df
 
 # Converts all input vectorAssembler-transformed Spark DFs to sklearn processable numpy matrices
 def vectors_to_matrices(sc, v_features, v_tech, v_info):

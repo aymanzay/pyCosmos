@@ -20,3 +20,11 @@ sparklib.py
 *.iml
 
 *.model
+
+*.npy
+
+graphs/2d_graph_800nodes.png
+
+graphs/2d_graph_1572nodes.png
+
+*.db

@@ -10,6 +10,8 @@ dag - contains api for a directed weighted graph, including list transformation 
 
 schema_functions - contains the functions scheme requires to get data, fit/load models, etc.
 
+sql_libdb - saves pandas DataFrame into SQL query-able database form for later automated recommendation purposes. 
+
 scheme:
  - Uses pySpark to create Spark DataFrames for later clustering and graph construction.
  - Using spark-sklearn to convert Spark DataFrames -> Pandas -> Numpy arrays

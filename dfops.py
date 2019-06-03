@@ -4,10 +4,6 @@ from pyspark.sql.functions import udf
 from pyspark.mllib.linalg import Vectors, VectorUDT
 from pyspark.ml.feature import VectorAssembler
 
-def Merge(dict1, dict2):
-    res = {**dict1, **dict2}
-    return res
-
 def normalize_matrix(full_arr):
     largest = 0
     for i in range(full_arr.shape[0]):
@@ -39,7 +35,7 @@ def normalize_matrix(full_arr):
     return ml_matrix
 
 
-def refactorAnalysisDF(lib_analysis, sql_context=None):
+def refactorAnalysisNP(lib_analysis, sql_context=None):
     keylist = lib_analysis[0].keys()
 
     full_arr = []
@@ -86,3 +82,33 @@ def refactorAnalysisDF(lib_analysis, sql_context=None):
 
 
     return np.asarray(ml_analysis)
+
+def refactorAnalysisDF(lib_analysis):
+    keylist = list(lib_analysis[0].keys())
+
+    full_arr = []
+    for songindex in range(lib_analysis.shape[0]):  # iterate songs
+        song = lib_analysis[songindex]
+        factored = []
+        for key in keylist:  # iterate song keys
+            metadata = song[key]
+            if isinstance(metadata, (list,)):
+                arrays = []
+                for item in metadata:  # iterate list of dicts
+                    subvals = np.asarray(list(item.values()))
+                    arrays.append(subvals)
+                temp_d = arrays  # now key -> array, instead of key to array[dicts]
+                # flatten = [iteml for sublist in temp_d for iteml in sublist]
+                factored.append(temp_d)
+            else:
+                items = np.asarray(list(metadata.values()))
+                # temp_d = items
+                # flatten = [iteml for sublist in temp_d for iteml in sublist]
+                # factored.append(temp_d)
+        full_arr.append(factored)
+
+    keylist.remove('meta')
+    keylist.remove('track')
+    analysis_df = pd.DataFrame(full_arr, columns=keylist)
+
+    return analysis_df
