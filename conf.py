@@ -1,4 +1,5 @@
 sql_url = 'sqlite:///library/dbs/ayman_lib.db'
+
 library_dir = 'library/pkls/aymanzay_lib.pkl'
 matrices_dir = 'library/matrices/library_matrices.npy'
 lib_ids_dir = 'library/matrices/lib_ids.pkl'

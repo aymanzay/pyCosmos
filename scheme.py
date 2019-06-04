@@ -8,6 +8,7 @@ from dfops import *
 import spotipy
 
 import os
+import datetime
 import sys
 import time
 import warnings
@@ -117,7 +118,9 @@ if __name__ == '__main__':
     pos = nx.spring_layout(G)
     nx.draw(G, pos, node_color='#A0CBE2', edge_color=colors,
                      width=4, edge_cmap=plt.cm.Blues, with_labels=False)
-    plt.savefig("graphs/2d_graph_"+str(num_nodes)+"nodes.png")
+
+    timestr = time.strftime("%m%d-%H-%M-%S")
+    plt.savefig("graphs/"+timestr+"_2Dgraph_"+str(num_nodes)+"nodes.png")
     plt.show()
 
     # Print adjacency-matrix

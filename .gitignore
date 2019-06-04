@@ -28,3 +28,10 @@ graphs/2d_graph_800nodes.png
 graphs/2d_graph_1572nodes.png
 
 *.db
+
+graph_tool/*
+agent_gym/__init__.py
+
+agent_gym/envs/__init__.py
+
+agent_gym/envs/agent_env.py
