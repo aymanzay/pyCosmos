@@ -26,7 +26,7 @@ ids = library['id']
 
 # Create df duplicates
 # Create spark vector dataframe representations for each dimension of features; note ml_analysis is a np array
-analysis_df, features_df, tech_df, info_df = separate_dfs(library, ids)
+analysis_df, features_df, tech_df, info_df, songIds_df = separate_dfs(library, ids)
 
 #full_df = [analysis_df, features_df, tech_df, info_df]
 #df_merged = reduce(lambda left, right: pd.merge(left, right, on='id', how='outer'), full_df).fillna(0)
@@ -39,6 +39,7 @@ engine = create_engine(sql_url, echo=False)
 features_df.to_sql('features', con=engine)
 tech_df.to_sql('tech', con=engine)
 info_df.to_sql('info', con=engine)
+songIds_df.to_sql('ids', con=engine)
 #analysis_df.to_sql('analysis', con=engine)
 
 def getSongDBs(engine, id):
@@ -47,5 +48,6 @@ def getSongDBs(engine, id):
         fs = con.execute('SELECT * from features where features.id ==', id)
         ts = con.execute('SELECT * from tech where tech.id ==', id)
         Is = con.execute('SELECT * from info where info.id ==', id)
+        IDs = con.execute('SELECT * from ids where ids.id ==', id)
 
         return fs, ts, Is

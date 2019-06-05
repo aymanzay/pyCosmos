@@ -59,10 +59,16 @@ def spark_dfToVectors(main_spark, lib):
     # create info dataframes
     s_info = main_spark.select('speechiness', 'acousticness', 'instrumentalness')
     print("Extracting song info data")
-    assembler = VectorAssembler(inputCols=s_info.schema.names, outputCol="tech_features")
+    assembler = VectorAssembler(inputCols=s_info.schema.names, outputCol="info_features")
     v_info = assembler.transform(s_info)
 
-    return ml_analysis, v_features, v_tech, v_info
+    # create song id dataframes
+    s_ids = main_spark.select('name', 'artist', 'album')
+    print('Extracting song id info')
+    assembler = VectorAssembler(inputCols=s_ids.schema.names, outputCol="id_features")
+    v_ids = assembler.transform(s_info)
+
+    return ml_analysis, v_features, v_tech, v_info, v_ids
 
 def separate_dfs(library, ids):
 
@@ -86,19 +92,23 @@ def separate_dfs(library, ids):
     song_df = lib[['speechiness', 'acousticness', 'instrumentalness']]
     song_df = pd.concat([song_df, ids], sort=False)
 
-    return analysis_df, main_df, tech_df, song_df
+    #song ids
+    songIds_df = lib[['name', 'artist', 'album']]
+    songIds_df = pd.concat([songIds_df, ids], sort=False)
+
+    return analysis_df, main_df, tech_df, song_df, songIds_df
 
 # Converts all input vectorAssembler-transformed Spark DFs to sklearn processable numpy matrices
-def vectors_to_matrices(sc, v_features, v_tech, v_info):
+def vectors_to_matrices(sc, v_features, v_tech, v_info, v_ids):
     print('Converting all vector dataframes to dense matrices')
     start = time.time()
     converter = Converter(sc)
-    features, tech, info = converter.toPandas(v_features), converter.toPandas(v_tech), converter.toPandas(v_info)
-    m_features, m_tech, m_info = features.values, tech.values, info.values
-    ml_features, ml_tech, ml_info = normalize_matrix(m_features), normalize_matrix(m_tech), normalize_matrix(m_info)
+    features, tech, info, ids = converter.toPandas(v_features), converter.toPandas(v_tech), converter.toPandas(v_info), converter.toPandas(v_ids)
+    m_features, m_tech, m_info, m_ids = features.values, tech.values, info.values, ids.values
+    ml_features, ml_tech, ml_info, ml_ids = normalize_matrix(m_features), normalize_matrix(m_tech), normalize_matrix(m_info), normalize_matrix(m_ids)
     end = time.time()
     print('Converted in', (end - start), 'seconds')
-    return ml_features, ml_tech, ml_info
+    return ml_features, ml_tech, ml_info, ml_ids
 
 def load_transform_graphData(song_matrices, matrix_labels):
 
