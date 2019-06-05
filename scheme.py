@@ -57,11 +57,11 @@ if __name__ == '__main__':
         s_main = s_main.drop('track_href', 'uri', 'analysis', 'analysis_url', 'id', 'type')
 
         # Create spark vector dataframe representations for each dimension of features; note ml_analysis is a np array
-        ml_analysis, v_features, v_tech, v_info = spark_dfToVectors(s_main, library)
+        ml_analysis, v_features, v_tech, v_info, v_ids = spark_dfToVectors(s_main, library)
 
         print('Producing numpy matrices')
         # Create numpy ml-processable versions of the vector dfs
-        ml_features, ml_tech, ml_info = vectors_to_matrices(sc, v_features, v_tech, v_info)
+        ml_features, ml_tech, ml_info, ml_ids = vectors_to_matrices(sc, v_features, v_tech, v_info, v_ids)
 
         song_matrices = [ml_analysis, ml_features, ml_tech, ml_info]
         print('Saving matrices')

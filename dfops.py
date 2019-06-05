@@ -84,7 +84,7 @@ def refactorAnalysisNP(lib_analysis, sql_context=None):
     return np.asarray(ml_analysis)
 
 def refactorAnalysisDF(lib_analysis):
-    keylist = list(lib_analysis[0].keys())
+    keylist = list(lib_analysis.keys())
 
     full_arr = []
     for songindex in range(lib_analysis.shape[0]):  # iterate songs
